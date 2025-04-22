@@ -51,39 +51,28 @@
 
     // 자동완성 주소 추천
     function suggestAddresses(query) {
-      const list = document.getElementById("addressSuggestions");
-      list.innerHTML = "";
-      if (!query) return;
+  const list = document.getElementById("addressSuggestions");
+  list.innerHTML = "";
+  if (!query) return;
 
-     fetch(`https://script.google.com/macros/s/AKfycbzV_xqjCN82zM0vpGexRZg4vOwJfwxMMurfHMp16fOAdLF2Hgr-1VKq8DdbDwhFRWBx/exec?query=${encodeURIComponent(query)}`)
-  .then(res => res.json())
-  .then(data => {
-    if (data.places) {
-      const list = document.getElementById("addressSuggestions");
-      list.innerHTML = "";
-      data.places.slice(0, 4).forEach(place => {
-        const li = document.createElement("li");
-        li.textContent = place.name;
-        li.style.cursor = "pointer";
-        li.onclick = () => selectStartPoint(place);
-        list.appendChild(li);
-      });
-    }
-  });
+  fetch(`https://script.google.com/macros/s/AKfycbzV_xqjCN82zM0vpGexRZg4vOwJfwxMMurfHMp16fOAdLF2Hgr-1VKq8DdbDwhFRWBx/exec?query=${encodeURIComponent(query)}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.places) {
+        data.places.slice(0, 4).forEach(place => {
+          const li = document.createElement("li");
+          li.textContent = place.name;
+          li.style.cursor = "pointer";
+          li.onclick = () => selectStartPoint(place);
+          list.appendChild(li);
+        });
+      }
+    })
+    .catch(err => {
+      console.error("주소 추천 오류:", err);
+    });
+}
 
-      .then(res => res.json())
-      .then(data => {
-        if (data.places) {
-          data.places.slice(0, 4).forEach(place => {
-            const li = document.createElement("li");
-            li.textContent = place.name;
-            li.style.cursor = "pointer";
-            li.onclick = () => selectStartPoint(place);
-            list.appendChild(li);
-          });
-        }
-      });
-    }
 
     // 주소 선택 시 좌표 저장 및 지도 이동
     function selectStartPoint(place) {
