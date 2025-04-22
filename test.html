@@ -55,7 +55,7 @@
   list.innerHTML = "";
   if (!query) return;
 
-  fetch(`https://script.google.com/macros/s/AKfycbxffLeKs6GVJ0d1dAuMuT1gK1ENr_mdYtc609Nif1FKeeADWMZR6K_Yid6wyRpi8SDm/exec?query=${encodeURIComponent(query)}`)
+  fetch(`https://script.google.com/macros/s/AKfycbxB0rVIfgEO7y0ZjpGGG5xUtHJJVtLKS62bkKx7woi_xeCwwBZKET35EtsNzWjiuSeX/exec?query=${encodeURIComponent(query)}`)
     .then(res => res.json())
     .then(data => {
       if (data.places) {
