@@ -39,30 +39,41 @@
     }
 
     function suggestAddresses(query) {
-      const list = document.getElementById("addressSuggestions");
-      list.innerHTML = "";
-      if (!query) return;
+  const list = document.getElementById("addressSuggestions");
+  list.innerHTML = "";
+  if (!query) return;
 
-      fetch(`https://script.google.com/macros/s/AKfycbwdlAM3OskFaAs0rmb5TnWC7t79lNThseYPO8p5qcViEg9J6Y_FtcODW7ONq7Gqg_Be/exec?query=${encodeURIComponent(query)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.addresses && data.addresses.length > 0) {
-            data.addresses.slice(0, 4).forEach(addr => {
-              const li = document.createElement("li");
-              li.textContent = addr.roadAddress || addr.jibunAddress;
-              li.style.cursor = "pointer";
-              li.onclick = () => {
-                startCoord = { lat: parseFloat(addr.y), lng: parseFloat(addr.x) };
-                map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
-                list.innerHTML = "";
-                showNearestStores();
-              };
-              list.appendChild(li);
-            });
-          }
-        })
-        .catch(err => console.error("주소 추천 오류:", err));
-    }
+  console.log("입력된 쿼리:", query); // 디버깅용 로그
+
+  fetch(`https://script.google.com/macros/s/AKfycbwdlAM3OskFaAs0rmb5TnWC7t79lNThseYPO8p5qcViEg9J6Y_FtcODW7ONq7Gqg_Be/exec?query=${encodeURIComponent(query)}`)
+    .then(res => {
+      console.log("응답 상태:", res.status); // 200이어야 정상
+      return res.json();
+    })
+    .then(data => {
+      console.log("받은 데이터:", data); // 구조 확인
+      if (data.addresses && data.addresses.length > 0) {
+        data.addresses.slice(0, 4).forEach(addr => {
+          const li = document.createElement("li");
+          li.textContent = addr.roadAddress || addr.jibunAddress;
+          li.style.cursor = "pointer";
+          li.onclick = () => {
+            startCoord = { lat: parseFloat(addr.y), lng: parseFloat(addr.x) };
+            map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
+            list.innerHTML = "";
+            showNearestStores();
+          };
+          list.appendChild(li);
+        });
+      } else {
+        console.warn("추천 주소 없음 또는 비정상 응답 구조", data);
+      }
+    })
+    .catch(err => {
+      console.error("주소 추천 오류:", err);
+    });
+}
+
 
     function showNearestStores() {
       if (!startCoord) return;
