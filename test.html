@@ -5,10 +5,7 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>출발지 기반 가까운 매장 찾기</title>
-
-  <!-- 네이버 지도 SDK (ncpKeyId 기반) -->
   <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=f9g830fknx"></script>
-
   <style>
     #map { width: 100%; height: 500px; margin-top: 10px; }
     #addressSuggestions li:hover { background: #eee; }
@@ -16,23 +13,15 @@
 </head>
 <body>
   <h3>출발지 주소 입력 후 가까운 매장 5개 보기</h3>
-
-  <!-- 출발지 입력창 + 자동완성 리스트 -->
   <input type="text" id="startAddress" placeholder="출발지 입력" oninput="suggestAddresses(this.value)" style="width: 300px;">
   <ul id="addressSuggestions" style="list-style:none;padding:5px;margin:0;border:1px solid #ccc;width:300px;"></ul>
-
   <div id="map"></div>
 
   <script>
-    // 실제 인증용 Client ID와 Secret은 외부에서 보호된 환경에서 사용 권장
-    const NAVER_CLIENT_ID = "f9g830fknx";
-    const NAVER_CLIENT_SECRET = "TvIJnoZk0FbI4WBql4aqSDlZ7lLtDedmMOf45D4C";
-
     let map;
     let markers = [];
     let startCoord = null;
 
-    // 예시 매장 데이터
     const storesData = [
       { brand: "던킨", name: "강릉교동", lat: 37.769, lng: 128.899 },
       { brand: "던킨", name: "강릉역사", lat: 37.754, lng: 128.896 },
@@ -44,48 +33,37 @@
 
     function initMap() {
       map = new naver.maps.Map('map', {
-        center: new naver.maps.LatLng(37.5665, 126.9780), // 서울 중심
+        center: new naver.maps.LatLng(37.5665, 126.9780),
         zoom: 10
       });
     }
 
-    // 자동완성 주소 추천
     function suggestAddresses(query) {
-  const list = document.getElementById("addressSuggestions");
-  list.innerHTML = "";
-  if (!query) return;
+      const list = document.getElementById("addressSuggestions");
+      list.innerHTML = "";
+      if (!query) return;
 
-  fetch(`https://script.google.com/macros/s/AKfycbxB0rVIfgEO7y0ZjpGGG5xUtHJJVtLKS62bkKx7woi_xeCwwBZKET35EtsNzWjiuSeX/exec?query=${encodeURIComponent(query)}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.places) {
-        data.places.slice(0, 4).forEach(place => {
-          const li = document.createElement("li");
-          li.textContent = place.name;
-          li.style.cursor = "pointer";
-          li.onclick = () => selectStartPoint(place);
-          list.appendChild(li);
-        });
-      }
-    })
-    .catch(err => {
-      console.error("주소 추천 오류:", err);
-    });
-}
-
-
-    // 주소 선택 시 좌표 저장 및 지도 이동
-    function selectStartPoint(place) {
-      document.getElementById("startAddress").value = place.name;
-      document.getElementById("addressSuggestions").innerHTML = "";
-
-      startCoord = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
-      map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
-
-      showNearestStores();
+      fetch(`https://script.google.com/macros/s/AKfycbwdlAM3OskFaAs0rmb5TnWC7t79lNThseYPO8p5qcViEg9J6Y_FtcODW7ONq7Gqg_Be/exec?query=${encodeURIComponent(query)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.addresses && data.addresses.length > 0) {
+            data.addresses.slice(0, 4).forEach(addr => {
+              const li = document.createElement("li");
+              li.textContent = addr.roadAddress || addr.jibunAddress;
+              li.style.cursor = "pointer";
+              li.onclick = () => {
+                startCoord = { lat: parseFloat(addr.y), lng: parseFloat(addr.x) };
+                map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
+                list.innerHTML = "";
+                showNearestStores();
+              };
+              list.appendChild(li);
+            });
+          }
+        })
+        .catch(err => console.error("주소 추천 오류:", err));
     }
 
-    // 가장 가까운 매장 5개 표시
     function showNearestStores() {
       if (!startCoord) return;
 
@@ -111,17 +89,14 @@
       });
     }
 
-    // 거리 계산 함수 (Haversine formula)
     function getDistance(lat1, lng1, lat2, lng2) {
       const toRad = deg => deg * (Math.PI / 180);
-      const R = 6371e3; // 지구 반지름 (미터)
+      const R = 6371e3;
       const dLat = toRad(lat2 - lat1);
       const dLng = toRad(lng2 - lng1);
-
       const a = Math.sin(dLat / 2) ** 2 +
                 Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
                 Math.sin(dLng / 2) ** 2;
-
       return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
 
@@ -129,4 +104,3 @@
   </script>
 </body>
 </html>
-
