@@ -55,12 +55,22 @@
       list.innerHTML = "";
       if (!query) return;
 
-      fetch(`https://naveropenapi.apigw.ntruss.com/map-place/v1/search?query=${encodeURIComponent(query)}`, {
-        headers: {
-          "X-NCP-APIGW-API-KEY-ID": NAVER_CLIENT_ID,
-          "X-NCP-APIGW-API-KEY": NAVER_CLIENT_SECRET
-        }
-      })
+     fetch(`https://script.google.com/macros/s/AKfycbzV_xqjCN82zM0vpGexRZg4vOwJfwxMMurfHMp16fOAdLF2Hgr-1VKq8DdbDwhFRWBx/exec?query=${encodeURIComponent(query)}`)
+  .then(res => res.json())
+  .then(data => {
+    if (data.places) {
+      const list = document.getElementById("addressSuggestions");
+      list.innerHTML = "";
+      data.places.slice(0, 4).forEach(place => {
+        const li = document.createElement("li");
+        li.textContent = place.name;
+        li.style.cursor = "pointer";
+        li.onclick = () => selectStartPoint(place);
+        list.appendChild(li);
+      });
+    }
+  });
+
       .then(res => res.json())
       .then(data => {
         if (data.places) {
