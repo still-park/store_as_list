@@ -1,155 +1,133 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <title>Naver Map Example</title>
-  <!-- 네이버 지도 JS SDK 불러오기 -->
-  <script
-    type="text/javascript"
-    src="https://openapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=f9g830fknx">
-  </script>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>출발지 기반 가까운 매장 찾기</title>
+
+  <!-- 네이버 지도 SDK (ncpKeyId 기반) -->
+  <script type="text/javascript" src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=f9g830fknx"></script>
+
   <style>
-    #map { width: 100%; height: 600px; }
+    #map { width: 100%; height: 500px; margin-top: 10px; }
+    #addressSuggestions li:hover { background: #eee; }
   </style>
 </head>
 <body>
-  <h1>던킨/배스킨라빈스 매장 지도</h1>
-  
-  <!-- 출발지 입력(선택) -->
-  <input type="text" id="startAddress" placeholder="출발지 주소 입력" />
-  <button onclick="searchStartPoint()">출발지 설정</button>
-  <button onclick="useCurrentLocation()">현재위치 사용</button>
-  
+  <h3>출발지 주소 입력 후 가까운 매장 5개 보기</h3>
+
+  <!-- 출발지 입력창 + 자동완성 리스트 -->
+  <input type="text" id="startAddress" placeholder="출발지 입력" oninput="suggestAddresses(this.value)" style="width: 300px;">
+  <ul id="addressSuggestions" style="list-style:none;padding:5px;margin:0;border:1px solid #ccc;width:300px;"></ul>
+
   <div id="map"></div>
-  
+
   <script>
+    // 실제 인증용 Client ID와 Secret은 외부에서 보호된 환경에서 사용 권장
+    const NAVER_CLIENT_ID = "f9g830fknx";
+    const NAVER_CLIENT_SECRET = "TvIJnoZk0FbI4WBql4aqSDlZ7lLtDedmMOf45D4C";
+
     let map;
     let markers = [];
-    let storesData = [
-      // 예시: 사전에 확보한 매장 좌표 (실제로는 서버에서 불러오거나 JSON 파일에 저장)
-      // { brand: "DD", name: "광화문점", lat: 37.57000, lng: 126.97783 },
-      // { brand: "BR", name: "강릉교동점", lat: 37.76500, lng: 128.91000 },
-      // ...
-    ];
-    let startCoord = null; // 출발지 좌표
+    let startCoord = null;
 
-    // 지도 초기화
+    // 예시 매장 데이터
+    const storesData = [
+      { brand: "던킨", name: "강릉교동", lat: 37.769, lng: 128.899 },
+      { brand: "던킨", name: "강릉역사", lat: 37.754, lng: 128.896 },
+      { brand: "배스킨라빈스", name: "강릉포남", lat: 37.767, lng: 128.914 },
+      { brand: "배스킨라빈스", name: "동해천곡", lat: 37.524, lng: 129.113 },
+      { brand: "던킨", name: "속초조양", lat: 38.197, lng: 128.589 },
+      { brand: "배스킨라빈스", name: "삼척남양", lat: 37.447, lng: 129.164 }
+    ];
+
     function initMap() {
       map = new naver.maps.Map('map', {
-        center: new naver.maps.LatLng(37.5666805, 126.9784147), // 서울시청 좌표(예시)
+        center: new naver.maps.LatLng(37.5665, 126.9780), // 서울 중심
         zoom: 10
       });
+    }
 
-      // 매장 데이터가 준비되었다고 가정하고, 마커 생성
-      storesData.forEach(store => {
-        let position = new naver.maps.LatLng(store.lat, store.lng);
-        let marker = new naver.maps.Marker({
-          position: position,
-          map: map
-        });
-        // 마커 클릭 시 매장 정보 표시(간단 예시)
-        let infoWindow = new naver.maps.InfoWindow({
-          content: `<div style="width:150px;text-align:center;">${store.brand} - ${store.name}</div>`
-        });
-        naver.maps.Event.addListener(marker, 'click', function() {
-          infoWindow.open(map, marker);
-        });
+    // 자동완성 주소 추천
+    function suggestAddresses(query) {
+      const list = document.getElementById("addressSuggestions");
+      list.innerHTML = "";
+      if (!query) return;
 
+      fetch(`https://naveropenapi.apigw.ntruss.com/map-place/v1/search?query=${encodeURIComponent(query)}`, {
+        headers: {
+          "X-NCP-APIGW-API-KEY-ID": NAVER_CLIENT_ID,
+          "X-NCP-APIGW-API-KEY": NAVER_CLIENT_SECRET
+        }
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.places) {
+          data.places.slice(0, 4).forEach(place => {
+            const li = document.createElement("li");
+            li.textContent = place.name;
+            li.style.cursor = "pointer";
+            li.onclick = () => selectStartPoint(place);
+            list.appendChild(li);
+          });
+        }
+      });
+    }
+
+    // 주소 선택 시 좌표 저장 및 지도 이동
+    function selectStartPoint(place) {
+      document.getElementById("startAddress").value = place.name;
+      document.getElementById("addressSuggestions").innerHTML = "";
+
+      startCoord = { lat: parseFloat(place.y), lng: parseFloat(place.x) };
+      map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
+
+      showNearestStores();
+    }
+
+    // 가장 가까운 매장 5개 표시
+    function showNearestStores() {
+      if (!startCoord) return;
+
+      const storeDistances = storesData.map(store => {
+        const distance = getDistance(startCoord.lat, startCoord.lng, store.lat, store.lng);
+        return { ...store, distance };
+      });
+
+      storeDistances.sort((a, b) => a.distance - b.distance);
+      const nearest = storeDistances.slice(0, 5);
+
+      markers.forEach(m => m.setMap(null));
+      markers = [];
+
+      nearest.forEach(store => {
+        const position = new naver.maps.LatLng(store.lat, store.lng);
+        const marker = new naver.maps.Marker({ position, map });
+        const info = new naver.maps.InfoWindow({
+          content: `<div style="text-align:center;">${store.brand} - ${store.name}</div>`
+        });
+        naver.maps.Event.addListener(marker, "click", () => info.open(map, marker));
         markers.push(marker);
       });
     }
 
-    // 출발지 주소 -> 좌표 변환
-    function searchStartPoint() {
-      const address = document.getElementById("startAddress").value.trim();
-      if (!address) return alert("주소를 입력해주세요.");
-
-      // 네이버 Geocoding API 호출 (fetch 예시)
-      // 실제로는 백엔드에서 처리하거나, Proxy 서버를 둬야 할 수 있음(브라우저에서 직접 호출 시 CORS 문제 등)
-      fetch(`YOUR_GEOCODING_API_ENDPOINT?query=${address}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data && data.addresses && data.addresses.length > 0) {
-            // 예시: 반환 데이터 구조에 따라 파싱
-            let { x, y } = data.addresses[0];
-            startCoord = { lat: parseFloat(y), lng: parseFloat(x) };
-            alert(`출발지 설정 완료: ${address}`);
-            // 지도 중심 이동
-            map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
-          } else {
-            alert("해당 주소를 찾을 수 없습니다.");
-          }
-        });
-    }
-
-    // 현재 위치 사용
-    function useCurrentLocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(pos => {
-          startCoord = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude
-          };
-          alert("현재 위치 설정 완료!");
-          map.setCenter(new naver.maps.LatLng(startCoord.lat, startCoord.lng));
-        }, err => {
-          console.error(err);
-          alert("현재 위치를 가져올 수 없습니다.");
-        });
-      } else {
-        alert("Geolocation을 지원하지 않는 브라우저입니다.");
-      }
-    }
-
-    // 가장 가까운 10개 매장 찾기 (직선거리 기준)
-    function findNearestStores() {
-      if (!startCoord) {
-        return alert("먼저 출발지를 설정하세요.");
-      }
-      // 거리 계산 후 정렬
-      let storeDistances = storesData.map(store => {
-        let distance = getDistance(
-          startCoord.lat, startCoord.lng,
-          store.lat, store.lng
-        );
-        return { ...store, distance };
-      });
-      storeDistances.sort((a,b) => a.distance - b.distance);
-
-      let nearest10 = storeDistances.slice(0, 10);
-      console.log("가장 가까운 10개 매장:", nearest10);
-
-      // 지도에 경로 표시 (예시: 1개 매장만 표시)
-      // 여러 개를 동시에 표시하면 지도가 복잡해질 수 있음
-      drawRoute(nearest10[0]); 
-    }
-
-    // 두 좌표 사이의 직선거리(미터) 계산 (Haversine formula 등)
+    // 거리 계산 함수 (Haversine formula)
     function getDistance(lat1, lng1, lat2, lng2) {
-      function deg2rad(deg) { return deg * (Math.PI/180); }
-      let R = 6371e3; // 지구 반지름 (m)
-      let dLat = deg2rad(lat2-lat1);
-      let dLng = deg2rad(lng2-lng1);
-      let a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
-        Math.sin(dLng/2) * Math.sin(dLng/2);
-      let c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      let distance = R * c;
-      return distance;
+      const toRad = deg => deg * (Math.PI / 180);
+      const R = 6371e3; // 지구 반지름 (미터)
+      const dLat = toRad(lat2 - lat1);
+      const dLng = toRad(lng2 - lng1);
+
+      const a = Math.sin(dLat / 2) ** 2 +
+                Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                Math.sin(dLng / 2) ** 2;
+
+      return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
     }
 
-    // Directions API를 사용해 경로 표시 (간단 개념 예시)
-    function drawRoute(store) {
-      // 실제 네이버 지도 JS SDK의 Directions 예시를 참고해, polyline 그리기
-      // 네이버 클라우드 플랫폼에서 제공하는 Directions(길찾기) API 사용 시,
-      // 요청 파라미터에 start, goal 좌표 등을 넣어 경로 정보를 받아온 뒤,
-      // 지도 위에 naver.maps.Polyline 형태로 표시할 수 있습니다.
-      console.log("경로 표시할 매장:", store);
-    }
-
-    // 페이지 로드 시 지도 초기화
     window.onload = initMap;
   </script>
 </body>
 </html>
+
